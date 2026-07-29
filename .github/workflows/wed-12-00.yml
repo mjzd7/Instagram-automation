@@ -22,16 +22,7 @@ jobs:
         run: npm ci
 
       - name: Install Composio CLI
-        run: |
-          curl -fsSL https://composio.dev/install | bash
-          # Add composio binary dir to PATH (location varies by platform)
-          COMPOSIO_DIR="$(dirname $(find $HOME/.composio -name composio -type f 2>/dev/null | head -1))"
-          if [ -n "$COMPOSIO_DIR" ]; then
-            echo "$COMPOSIO_DIR" >> $GITHUB_PATH
-          else
-            echo "composio binary not found after install" >&2
-            exit 1
-          fi
+        run: npm install -g composio
 
       - name: Authenticate Composio
         run: composio login -y --user-api-key "${{ secrets.COMPOSIO_API_KEY }}"
