@@ -493,14 +493,7 @@ async function main() {
   console.log(`History updated: ${history.size} total posts`);
 
   // 6. Toggle treatment for next post and save state
-  const nextState = { nextTreatment: currentTreatment === "light" ? "dark" as const : "light" as const,
-    nextTreatment: currentTreatment === "light" ? "dark" : "light"
-  };
+  const nextState = { nextTreatment: currentTreatment === "light" ? "dark" as const : "light" as const };
   saveTreatmentState(nextState);
   console.log(`Treatment state updated: next post will be ${nextState.nextTreatment}`);
-}
-
-main().catch((err) => {
-  console.error("❌", err.message || err);
-  process.exit(1);
 });
