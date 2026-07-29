@@ -14,14 +14,15 @@
   "dependencies": {
     "canvas": "^3.2.3",
     "composio": "^1.0.0",
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "typescript": "^5.0.0",
+    "tsx": "^4.23.1"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.0.0"
+    "ts-node": "^10.9.2"
   }
 }

@@ -10,7 +10,7 @@ export default async function handler(req: any, res: any) {
   };
 
   return new Promise((resolvePromise) => {
-    const child = spawn('node', ['dist/daily-quote.js'], {
+    const child = spawn('npx', ['tsx', 'src/daily-quote.ts'], {
       cwd: process.cwd(),
       env,
       stdio: ['pipe', 'pipe', 'pipe'],
