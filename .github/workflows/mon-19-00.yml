@@ -22,10 +22,19 @@ jobs:
         run: npm ci
 
       - name: Install Composio CLI
-        run: npm install -g composio
+        run: |
+          curl -fsSL https://composio.dev/install | bash -s -- @composio/cli@0.2.32
+          # Add composio binary dir to PATH (location varies by platform)
+          COMPOSIO_DIR="$(dirname $(find $HOME/.composio -name composio -type f 2>/dev/null | head -1))"
+          if [ -n "$COMPOSIO_DIR" ]; then
+            echo "$COMPOSIO_DIR" >> $GITHUB_PATH
+          else
+            echo "composio binary not found after install" >&2
+            exit 1
+          fi
 
       - name: Authenticate Composio
-        run: npx composio login -y --user-api-key "${{ secrets.COMPOSIO_API_KEY }}"
+        run: composio login -y --user-api-key "${{ secrets.COMPOSIO_API_KEY }}"
 
       - name: Post Quote
         env:
@@ -35,4 +44,4 @@ jobs:
           HASHTAGS: '#motivatemedaily,#inspire,#inspiremedaily,#motivate,#hustle,#hardwork'
           LOCATIONS: '#gurgaon,#delhidiaries'
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
-        run: npx composio run --file scripts/post-workflow.ts
+        run: composio run --file scripts/post-workflow.ts
