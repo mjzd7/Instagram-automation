@@ -24,12 +24,12 @@ jobs:
       - name: Install Composio CLI
         run: curl -fsSL https://composio.dev/install.sh | bash
       
-- name: Post Quote
-         env:
-           SLOT_ID: '1'
-           BRAND: 'success.for.sure™'
-           CATEGORIES: 'business,entrepreneurship,leadership,success,motivation'
-           HASHTAGS: '#motivatemedaily,#inspire,#inspiremedaily,#motivate,#hustle,#hardwork'
-           LOCATIONS: '#gurgaon,#delhidiaries'
-           COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
-         run: composio run --file scripts/daily-quote.ts
+      - name: Post Quote
+        env:
+          SLOT_ID: '1'
+          BRAND: 'success.for.sure™'
+          CATEGORIES: 'business,entrepreneurship,leadership,success,motivation'
+          HASHTAGS: '#motivatemedaily,#inspire,#inspiremedaily,#motivate,#hustle,#hardwork'
+          LOCATIONS: '#gurgaon,#delhidiaries'
+          COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
+        run: composio run --file scripts/daily-quote.ts

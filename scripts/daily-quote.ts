@@ -55,6 +55,8 @@ const AUTHOR_COLOR = "#e94560"; // accent red
 const TEXT_COLOR = "#ffffff";
 const MUTED = "rgba(255,255,255,0.35)";
 
+const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY; // Required for Unsplash API
+
 // Categories to pick from (comma-separated from env or default)
 const CATEGORIES_ENV = process.env.CATEGORIES || "business,entrepreneurship,leadership,success,motivation";
 const CATEGORIES = CATEGORIES_ENV.split(",").map(s => s.trim()).filter(Boolean);
@@ -138,18 +140,98 @@ async function fetchQuote(category: string): Promise<Quote> {
 }
 
 // ── Background image fetching ─────────────────────────────────────────
+// ── Background image fetching ─────────────────────────────────────────
 async function fetchBackgroundImage(category: string): Promise<Buffer> {
-  // Build Unsplash query: use category as search term; fallback to "motivation"
-  const query = encodeURIComponent(category);
-  const url = `${UNSPLASH_SOURCE}${query}`; // e.g., https://source.unsplash.com/featured/business
-  const resp = await fetch(url);
-  if (!resp.ok) {
-    // fallback to generic
-    const fallback = await fetch(`${UNSPLASH_SOURCE}motivation`);
-    if (!fallback.ok) throw new Error("Failed to fetch background image");
-    return Buffer.from(await fallback.arrayBuffer());
+  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+  if (!accessKey) {
+    throw new Error("UNSPLASH_ACCESS_KEY environment variable is not set");
   }
-  return Buffer.from(await resp.arrayBuffer());
+
+  try {
+    // Try to get image for the specific category
+    const response = await fetch(
+      `https://api.unsplash.com/photos/random?query=${encodeURIComponent(
+        category
+      )}&orientation=landscape&client_id=${accessKey}`
+    );
+
+    if (!response.ok) {
+      // Fallback to motivation category if specific category fails
+      const fallbackResponse = await fetch(
+        `https://api.unsplash.com/photos/random?query=motivation&orientation=landscape&client_id=${accessKey}`
+      );
+      if (!fallbackResponse.ok) {
+        throw new Error(
+          `Failed to fetch image from Unsplash: ${response.status} ${response.statusText}`
+        );
+      }
+      const data = await fallbackResponse.json();
+      const imageUrl = data.urls.regular;
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error(
+          `Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`
+        );
+      }
+      return Buffer.from(await imageResponse.arrayBuffer());
+    }
+
+    const data = await response.json();
+    const imageUrl = data.urls.regular; // Good balance of quality and file size
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(
+        `Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`
+      );
+    }
+    return Buffer.from(await imageResponse.arrayBuffer());
+  } catch (error) {
+    console.error("Error fetching background image:", error);
+    
+    // Final fallback: create a simple gradient background
+    return createFallbackBackground();
+  }
+}
+
+// Optional: Create a simple gradient background as final fallback
+function createFallbackBackground(): Buffer {
+  // Check if canvas is available
+  let Canvas;
+  try {
+    Canvas = require("canvas");
+  } catch (e) {
+    // If canvas is not available, return a minimal valid PNG
+    // This is a 1x1 transparent PNG
+    return Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "base64"
+    );
+  }
+
+  const { createCanvas } = Canvas;
+  const canvas = createCanvas(IMG_W, IMG_H);
+  const ctx = canvas.getContext("2d");
+
+  // Create a nice gradient background
+  const gradient = ctx.createLinearGradient(0, 0, 0, IMG_H);
+  gradient.addColorStop(0, "#1e3c72");
+  gradient.addColorStop(1, "#2a5298");
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, IMG_W, IMG_H);
+
+  // Add some subtle texture/noise
+  for (let i = 0; i < 500; i++) {
+    const x = Math.random() * IMG_W;
+    const y = Math.random() * IMG_H;
+    const radius = Math.random() * 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.08})`;
+    ctx.fill();
+  }
+
+  return canvas.toBuffer("image/png");
 }
 
 // ── SVG generation ────────────────────────────────────────────────────
