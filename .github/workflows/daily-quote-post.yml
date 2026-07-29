@@ -1,0 +1,32 @@
+name: Daily Quote Post
+
+on:
+  schedule:
+    # 4 slots per day at 09:00, 12:00, 17:00, 20:00 UTC
+    # Adjust times based on your local timezone (IST = UTC+5:30)
+    - cron: '0 9 * * *'   # Slot 1 - 09:00 UTC (14:30 IST)
+    - cron: '0 12 * * *'  # Slot 2 - 12:00 UTC (17:30 IST)
+    - cron: '0 17 * * *'  # Slot 3 - 17:00 UTC (22:30 IST)
+    - cron: '0 20 * * *'  # Slot 4 - 20:00 UTC (01:30 IST next day)
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run daily quote generation (SKIP mode)
+        env:
+          UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+        run: |
+          SKIP_POST=true npx tsx src/daily-quote.ts

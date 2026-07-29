@@ -1,24 +1,24 @@
 {
+  "version": 2,
   "builds": [
     {
-      "src": "api/*.ts",
+      "src": "src/daily-quote.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/post",
-      "dest": "api/post.ts"
-    },
-    {
-      "src": "/healthz",
-      "dest": "api/health.ts"
+      "src": "/api/generate",
+      "dest": "src/daily-quote.ts"
     }
   ],
-  "crons": [
-    {
-      "path": "/api/post",
-      "schedule": "0 0 * * *"
-    }
-  ]
+  "env": {
+    "UNSPLASH_ACCESS_KEY": "@unsplash_access_key",
+    "BRAND": "success.for.sure™",
+    "CATEGORIES": "business,entrepreneurship,leadership,success,motivation",
+    "HASHTAGS": "#motivatemedaily,#inspire,#inspiremedaily,#motivate,#hustle,#hardwork",
+    "LOCATIONS": "#gurgaon,#delhidiaries",
+    "SLOT_ID": "0",
+    "SKIP_POST": "true"
+  }
 }

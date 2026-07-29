@@ -1,0 +1,15 @@
+# Instagram Automation Content Schedule
+# 4 slots per day at: 09:00, 12:00, 17:00, 20:00
+# Themes cycle through: motivation, business, leadership, success, lifestyle, entrepreneurship, motivation
+
+# Slot 1: 09:00 daily
+0 9 * * * /Users/mm/orca/workspaces/Instagram-automation/plankton/run_content_slot.sh
+
+# Slot 2: 12:00 daily
+0 12 * * * /Users/mm/orca/workspaces/Instagram-automation/plankton/run_content_slot.sh
+
+# Slot 3: 17:00 daily
+0 17 * * * /Users/mm/orca/workspaces/Instagram-automation/plankton/run_content_slot.sh
+
+# Slot 4: 20:00 daily
+0 20 * * * /Users/mm/orca/workspaces/Instagram-automation/plankton/run_content_slot.sh

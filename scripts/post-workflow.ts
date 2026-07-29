@@ -5,7 +5,7 @@
  * No top-level exports (composio runs via Bun in script mode).
  * Imports main() from daily-quote and executes it.
  */
-import { main } from "../src/daily-quote.js";
+import { main } from "../dist/daily-quote.js";
 
 main().catch((err: unknown) => {
   const msg = err instanceof Error ? err.message : String(err);
