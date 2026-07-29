@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { join } from 'path';
 
 export default async function handler(req: any, res: any) {
   const results = [];
@@ -8,10 +9,13 @@ export default async function handler(req: any, res: any) {
       ...process.env,
       SLOT_ID: String(slot),
       SKIP_POST: 'true',
+      TSX_CACHE: 'none',
+      HOME: '/tmp',
+      USERPROFILE: '/tmp',
     };
 
     const result = await new Promise((resolvePromise) => {
-      const child = spawn('node', ['dist/daily-quote.js'], {
+      const child = spawn('npx', ['tsx', 'src/daily-quote.ts'], {
         cwd: process.cwd(),
         env,
         stdio: ['pipe', 'pipe', 'pipe'],
