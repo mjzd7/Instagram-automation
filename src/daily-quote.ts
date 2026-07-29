@@ -498,16 +498,22 @@ async function main() {
     image_file: tmpPath,
     caption,
   });
-  const dKeys = container?.data && typeof container.data === "object" ? Object.keys(container.data) : [];
-  const dSummary = dKeys.map(k => `${k}:${typeof container.data[k]}=${String(container.data[k]).length}ch`).join(", ");
-  console.log(`Container response: success=${container?.successful}, topKeys=[${Object.keys(container || {}).join(",")}], dataKeys=[${dKeys.join(",")}], summary=[${dSummary}]`);
-  // Try multiple possible field names for the container ID
-  const candidates = ["id", "creation_id", "container_id", "ig_container_id", "media_id"];
-  for (const c of candidates) {
-    const v = container?.data?.[c];
-    if (v) console.log(`  candidate[${c}]: type=${typeof v}, len=${String(v).length}`);
+  function deepKeys(obj: any, prefix = ""): string[] {
+    if (!obj || typeof obj !== "object") return [`${prefix}=${typeof obj}`];
+    const entries: string[] = [];
+    for (const k of Object.keys(obj).slice(0, 8)) {
+      const v = obj[k];
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        entries.push(`${prefix}${k}=${Object.keys(v).join(",")}`);
+        entries.push(...deepKeys(v, `${prefix}${k}.`));
+      } else {
+        entries.push(`${prefix}${k}:${typeof v}=${String(v).substring(0,30)}`);
+      }
+    }
+    return entries;
   }
-  creationId = container.data?.id || container.data?.creation_id;
+  console.log(`Container FULL: ${deepKeys(container).join(" | ")}`);
+  creationId = container?.data?.data?.id || container?.response?.data?.id || container?.result?.data?.id || container?.data?.id || container?.data?.creation_id;
   console.log(`Container created (type=${typeof creationId}, length=${String(creationId).length})`);
 
   // Step 4c: Publish
