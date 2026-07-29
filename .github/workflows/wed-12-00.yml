@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Composio CLI
         run: |
-          curl -fsSL https://raw.githubusercontent.com/ComposioHQ/composio/main/install.sh | bash
+          curl -fsSL https://composio.dev/install | bash
           echo "$HOME/.composio/bin" >> $GITHUB_PATH
 
       - name: Post Quote
