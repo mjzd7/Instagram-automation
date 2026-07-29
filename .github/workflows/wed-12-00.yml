@@ -22,7 +22,9 @@ jobs:
         run: npm ci
 
       - name: Install Composio CLI
-        run: npm install -g composio
+        run: |
+          npm install -g composio
+          echo "$(npm config get prefix)/bin" >> $GITHUB_PATH
 
       - name: Authenticate Composio
         run: composio login -y --user-api-key "${{ secrets.COMPOSIO_API_KEY }}"
