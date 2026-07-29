@@ -18,7 +18,7 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync } from "node:child_process";
+
 
 // Declare the execute function from Composio
 declare function execute(slug: string, data?: any): Promise<any>;
@@ -493,33 +493,13 @@ async function main() {
   console.log("Creating media container...");
   let creationId: string;
 
-  if (process.env.COMPOSIO_API_KEY) {
-    // Use direct CLI call to bypass composio run's execute() wrapper
-    const composioBin = process.env.COMPOSIO_BIN || "composio";
-    const payloadPath = join(DATA_DIR, "container-payload.json");
-    writeFileSync(payloadPath, JSON.stringify({ ig_user_id: "me", image_file: tmpPath, caption }));
-    const raw = execSync(`${composioBin} execute INSTAGRAM_POST_IG_USER_MEDIA -d @${payloadPath}`, {
-      encoding: "utf-8",
-      maxBuffer: 10 * 1024 * 1024,
-    }).trim();
-    const resp = JSON.parse(raw);
-    console.log(`Container response: success=${resp.successful}, dataId=${resp.data?.id}`);
-    if (!resp.successful || !resp.data?.id) {
-      throw new Error(`Container creation failed: ${resp.error || JSON.stringify(resp.data)}`);
-    }
-    creationId = resp.data.id;
-  } else {
-    // No API key available — use composio run's built-in execute()
-    const container = await execute("INSTAGRAM_POST_IG_USER_MEDIA", {
-      ig_user_id: "me",
-      image_file: tmpPath,
-      caption,
-    });
-    const dataType = typeof container?.data;
-    const dataKeys = container?.data && typeof container.data === "object" ? Object.keys(container.data) : [];
-    console.log(`Container response: success=${container?.successful}, dataType=${dataType}, dataKeys=[${dataKeys}]`);
-    creationId = container.data?.id || container.data?.creation_id;
-  }
+  const container = await execute("INSTAGRAM_POST_IG_USER_MEDIA", {
+    ig_user_id: "me",
+    image_file: tmpPath,
+    caption,
+  });
+  console.log(`Container response: success=${container?.successful}, dataId=${container.data?.id}`);
+  creationId = container.data?.id || container.data?.creation_id;
   console.log(`Container created (type=${typeof creationId}, length=${String(creationId).length})`);
 
   // Step 4c: Publish
