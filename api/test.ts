@@ -1,16 +1,13 @@
 import { spawn } from 'child_process';
 
 export default async function handler(req: any, res: any) {
-  const { slots = '1,2,3,4' } = req.query || {};
-  const slotArray = String(slots).split(',').map(s => s.trim());
-  
   const results = [];
   
-  for (const slot of slotArray) {
+  for (let slot = 1; slot <= 4; slot++) {
     const env = {
       ...process.env,
-      SLOT_ID: slot,
-      SKIP_POST: 'false',
+      SLOT_ID: String(slot),
+      SKIP_POST: 'true',
     };
 
     const result = await new Promise((resolvePromise) => {
@@ -51,7 +48,7 @@ export default async function handler(req: any, res: any) {
     success: allSuccess,
     results,
     message: allSuccess 
-      ? 'All 4 images posted successfully' 
-      : 'Some posts failed',
+      ? 'All 4 images generated successfully (test mode)' 
+      : 'Some generations failed',
   });
 }

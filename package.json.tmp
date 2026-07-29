@@ -9,7 +9,7 @@
     "build": "tsc",
     "test:vercel": "npx tsx scripts/test-vercel.ts",
     "test:local": "SKIP_POST=true npx tsx src/daily-quote.ts",
-    "test:4slots": "node --eval \"console.log(\"Run 4 image generation test via test endpoint\")\""
+    "test:4slots": "node -e \"console.log('Run 4 image generation test via test endpoint')\""
   },
   "dependencies": {
     "canvas": "^3.2.3",
