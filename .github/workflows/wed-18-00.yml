@@ -44,5 +44,4 @@ jobs:
           HASHTAGS: '#motivatemedaily,#inspire,#inspiremedaily,#motivate,#hustle,#hardwork'
           LOCATIONS: '#gurgaon,#delhidiaries'
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
-          COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
         run: composio run --file scripts/post-workflow.ts

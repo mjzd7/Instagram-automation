@@ -495,8 +495,14 @@ async function main() {
     image_file: tmpPath,
     caption,
   });
+  // Debug: log the full response structure (keys only, to avoid masking secrets)
+  const keys = container && typeof container === "object" ? Object.keys(container) : [];
+  const dataType = typeof container?.data;
+  const dataKeys = container?.data && typeof container.data === "object" ? Object.keys(container.data) : [];
+  console.log(`Container response: success=${container?.successful}, keys=[${keys}], dataType=${dataType}, dataKeys=[${dataKeys}]`);
+  
   const creationId = container.data?.id || container.data?.creation_id;
-  console.log(`Container created: ${creationId}`);
+  console.log(`Container created (type=${typeof creationId}, length=${String(creationId).length})`);
 
   // Step 4c: Publish
   console.log("Publishing...");
