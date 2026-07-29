@@ -489,32 +489,32 @@ async function main() {
     // Continue anyway - maybe the endpoint isn't available
   }
 
-  // Step 4b: Create media container
-  console.log("Creating media container...");
-  let creationId: string;
-
-  const container = await execute("INSTAGRAM_POST_IG_USER_MEDIA", {
-    ig_user_id: "me",
-    image_file: tmpPath,
-    caption,
-  });
-  function deepKeys(obj: any, prefix = ""): string[] {
-    if (!obj || typeof obj !== "object") return [`${prefix}=${typeof obj}`];
-    const entries: string[] = [];
-    for (const k of Object.keys(obj).slice(0, 8)) {
-      const v = obj[k];
-      if (v && typeof v === "object" && !Array.isArray(v)) {
-        entries.push(`${prefix}${k}=${Object.keys(v).join(",")}`);
-        entries.push(...deepKeys(v, `${prefix}${k}.`));
-      } else {
-        entries.push(`${prefix}${k}:${typeof v}=${String(v).substring(0,30)}`);
-      }
-    }
-    return entries;
+  // Step 4b: Upload image to temporary public URL for Instagram to fetch
+  // (execute() with image_file returns file-upload metadata, not Instagram container ID)
+  console.log("Uploading image to temporary public URL...");
+  let imageUrl: string | undefined;
+  try {
+    const imgBuf = readFileSync(tmpPath);
+    const resp = await fetch("https://tmp.ninja/upload.php", {
+      method: "POST",
+      headers: { "Content-Type": "image/png" },
+      body: imgBuf,
+    });
+    imageUrl = (await resp.text()).trim();
+    console.log(`Uploaded to: ${imageUrl?.substring(0, 60)}...`);
+  } catch (uploadErr) {
+    console.log(`Upload failed, using file directly: ${uploadErr}`);
   }
-  console.log(`Container FULL: ${deepKeys(container).join(" | ")}`);
-  creationId = container?.data?.data?.id || container?.response?.data?.id || container?.result?.data?.id || container?.data?.id || container?.data?.creation_id;
-  console.log(`Container created (type=${typeof creationId}, length=${String(creationId).length})`);
+
+  // Step 4c: Create media container
+  console.log("Creating media container...");
+  const payload: any = { ig_user_id: "me", caption };
+  if (imageUrl) payload.image_url = imageUrl;
+  else payload.image_file = tmpPath;
+  const container = await execute("INSTAGRAM_POST_IG_USER_MEDIA", payload);
+  console.log(`Container: success=${container?.successful}, id=${container?.data?.id}, err=${container?.error}`);
+  const creationId: string = container?.data?.id;
+  console.log(`Container created: id=${creationId} (type=${typeof creationId}, len=${String(creationId).length})`);
 
   // Step 4c: Publish
   console.log("Publishing...");
