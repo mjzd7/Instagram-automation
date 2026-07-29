@@ -489,29 +489,41 @@ async function main() {
     // Continue anyway - maybe the endpoint isn't available
   }
 
-  // Step 4b: Create media container
-  console.log("Creating media container...");
-  const container = await execute("INSTAGRAM_POST_IG_USER_MEDIA", {
-    ig_user_id: "me",
-    image_file: tmpPath,
-    caption,
-  });
-  const creationId: string = container?.data?.id;
-  console.log(`Container: success=${container?.successful}, id=${creationId} (len=${String(creationId).length}), err=${container?.error}`);
+  // Step 4b: Upload image to public URL (execute() with image_file returns upload ref, not container ID)
+  console.log("Uploading image to public URL...");
+  let imageUrl = "";
+  try {
+    const imgBuf = readFileSync(tmpPath);
+    const form = new FormData();
+    const blob = new Blob([imgBuf], { type: "image/png" });
+    form.append("file", blob, "ig-post.png");
+    const resp = await fetch("https://0x0.st", { method: "POST", body: form });
+    imageUrl = (await resp.text()).trim();
+    console.log(`Uploaded to: ${imageUrl.substring(0, 80)}`);
+  } catch (e) {
+    console.log(`Upload failed: ${e}, using image_file as fallback`);
+  }
 
-  // Step 4c: Publish
-  console.log("Publishing (creation_id=${creationId})...");
+  // Step 4c: Create media container
+  console.log("Creating media container...");
+  const payload: any = { ig_user_id: "me", caption };
+  if (imageUrl) payload.image_url = imageUrl;
+  else payload.image_file = tmpPath;
+  const container = await execute("INSTAGRAM_POST_IG_USER_MEDIA", payload);
+  const creationId: string = container?.data?.id;
+  console.log(`Container: success=${container?.successful}, id=${creationId} (len=${String(creationId).length})`);
+
+  // Step 4d: Publish
+  console.log(`Publishing with creation_id=${creationId}...`);
   const pub = await execute("INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH", {
     ig_user_id: "me",
     creation_id: creationId,
-    max_wait_seconds: 90,
   });
   console.log(`Pub: success=${pub?.successful}, id=${pub?.data?.id}, err=${pub?.error}`);
   const mediaId = pub?.data?.id;
   if (pub?.successful) {
     console.log(`✅ Published! Media ID: ${mediaId}`);
   } else {
-    console.log(`Publish failed: ${pub?.error || pub?.data?.error || "unknown"}`);
     throw new Error(`Publish failed: ${pub?.error || JSON.stringify(pub?.data)}`);
   }
 
