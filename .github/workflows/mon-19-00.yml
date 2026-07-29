@@ -24,7 +24,14 @@ jobs:
       - name: Install Composio CLI
         run: |
           curl -fsSL https://composio.dev/install | bash
-          echo "$HOME/.composio/bin" >> $GITHUB_PATH
+          # Add composio binary dir to PATH (location varies by platform)
+          COMPOSIO_DIR="$(dirname $(find $HOME/.composio -name composio -type f 2>/dev/null | head -1))"
+          if [ -n "$COMPOSIO_DIR" ]; then
+            echo "$COMPOSIO_DIR" >> $GITHUB_PATH
+          else
+            echo "composio binary not found after install" >&2
+            exit 1
+          fi
 
       - name: Post Quote
         env:
