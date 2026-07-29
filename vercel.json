@@ -3,14 +3,27 @@
   "builds": [
     {
       "src": "api/generate.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["src/**/*", "dist/**/*", "scripts/**/*", "treatment-state.json", "package.json"]
+      }
     },
     {
       "src": "api/post.ts",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["src/**/*", "dist/**/*", "scripts/**/*", "package.json"]
+      }
     },
     {
       "src": "api/test.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["src/**/*", "dist/**/*", "scripts/**/*", "package.json"]
+      }
+    },
+    {
+      "src": "api/health.ts",
       "use": "@vercel/node"
     }
   ],
@@ -26,6 +39,10 @@
     {
       "src": "/api/test",
       "dest": "/api/test.ts"
+    },
+    {
+      "src": "/api/health",
+      "dest": "/api/health.ts"
     }
   ]
 }

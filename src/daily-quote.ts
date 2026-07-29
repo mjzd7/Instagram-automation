@@ -1290,9 +1290,18 @@ const svg = await renderQuoteSvg(lines, quote.author, BRAND_ESCAPED, IMG_W, IMG_
             }
 
 // -----------------------------------------------------------------------------
-main().catch(err => {
-  console.error('❌', err.message || err);
-  process.exit(1);
-});
+export async function dailyQuote(env?: Record<string, string>) {
+  if (env) {
+    Object.assign(process.env, env);
+  }
+  await main();
+}
+
+if (import.meta.url === `file://${process.argv[1]}` || process.argv[1] === '<stdin>') {
+  main().catch(err => {
+    console.error('❌', err.message || err);
+    process.exit(1);
+  });
+}
 
 

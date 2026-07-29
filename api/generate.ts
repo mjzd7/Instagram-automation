@@ -9,8 +9,9 @@ export default async function handler(req: any, res: any) {
     SKIP_POST: 'true',
   };
 
-  return new Promise((resolvePromise) => {
-    const child = spawn('npx', ['tsx', 'src/daily-quote.ts'], {
+  return new Promise((resolve, reject) => {
+    // Use node directly to run the compiled JS
+    const child = spawn('node', ['dist/daily-quote.js'], {
       cwd: process.cwd(),
       env,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -19,24 +20,37 @@ export default async function handler(req: any, res: any) {
     let stdout = '';
     let stderr = '';
 
-    child.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    child.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
+    child.stdout.on('data', (data) => stdout += data.toString());
+    child.stderr.on('data', (data) => stderr += data.toString());
 
     child.on('close', (code) => {
-      resolvePromise(
-        res.status(code === 0 ? 200 : 500).json({
-          success: code === 0,
+      if (code === 0) {
+        try {
+          // Try to parse JSON response if one exists
+          const result = stdout.trim() ? JSON.parse(stdout.trim()) : {};
+          res.status(200).json({
+            success: true,
+            slot,
+            message: 'Quote generation completed',
+            ...result,
+          });
+        } catch (e) {
+          res.status(200).json({
+            success: true,
+            slot,
+            stdout,
+            stderr,
+            exitCode: code,
+          });
+        }
+      } else {
+        res.status(500).json({
+          success: false,
           slot,
-          stdout,
           stderr,
           exitCode: code,
-        })
-      );
+        });
+      }
     });
   });
 }
