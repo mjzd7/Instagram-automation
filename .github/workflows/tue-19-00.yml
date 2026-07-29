@@ -22,12 +22,10 @@ jobs:
         run: npm ci
 
       - name: Install Composio CLI
-        run: |
-          npm install -g composio
-          echo "$(npm config get prefix)/bin" >> $GITHUB_PATH
+        run: npm install -g composio
 
       - name: Authenticate Composio
-        run: composio login -y --user-api-key "${{ secrets.COMPOSIO_API_KEY }}"
+        run: npx composio login -y --user-api-key "${{ secrets.COMPOSIO_API_KEY }}"
 
       - name: Post Quote
         env:
@@ -37,4 +35,4 @@ jobs:
           HASHTAGS: '#motivatemedaily,#inspire,#inspiremedaily,#motivate,#hustle,#hardwork'
           LOCATIONS: '#gurgaon,#delhidiaries'
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
-        run: composio run --file scripts/post-workflow.ts
+        run: npx composio run --file scripts/post-workflow.ts
