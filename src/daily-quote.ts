@@ -22,23 +22,27 @@ import { fileURLToPath } from "node:url";
 // Declare the execute function from Composio
 declare function execute(slug: string, data?: any): Promise<any>;
 
-// Sharp import - using dynamic import to avoid ES module issues in some environments
-let sharpModule: any;
+// Sharp import - handle both ESM ({ default: fn }) and CJS (fn directly)
+let sharpFn: any;
 async function getSharp() {
-  if (!sharpModule) {
+  if (!sharpFn) {
     // @ts-ignore - dynamic import
-    sharpModule = await import("sharp");
+    const mod = await import("sharp");
+    sharpFn = mod.default || mod;
   }
-  return sharpModule;
+  return sharpFn;
 }
 
 // ── Configuration ──────────────────────────────────────────────────────
-const HISTORY_PATH = join(dirname(fileURLToPath(import.meta.url)), "posted.json");
-const TREATMENT_STATE_PATH = join(dirna(fileURLToPath(import.meta.url)), "treatment-state.json");
+// In Vercel/Lambda, /tmp is the only writable directory
+const DATA_DIR = process.env.VERCEL
+  ? "/tmp"
+  : dirname(fileURLToPath(import.meta.url));
+const HISTORY_PATH = join(DATA_DIR, "posted.json");
+const TREATMENT_STATE_PATH = join(DATA_DIR, "treatment-state.json");
 // Ensure the directory exists
-const scriptDir = dirna(fileURLToPath(import.meta.url));
-if (!existsSync(scriptDir)) {
-  mkdirSync(scriptDir, { recursive: true });
+if (!existsSync(DATA_DIR)) {
+  mkdirSync(DATA_DIR, { recursive: true });
 }
 if (!existsSync(HISTORY_PATH)) {
   writeFileSync(HISTORY_PATH, JSON.stringify({ posted: [], updated: new Date().toISOString() }, null, 2));
@@ -47,7 +51,7 @@ if (!existsSync(TREATMENT_STATE_PATH)) {
   writeFileSync(TREATMENT_STATE_PATH, JSON.stringify({ nextTreatment: "light" }, null, 2));
 }
 
-const QUOTE_API_BASE = "https://quotesapi.prayushadhikari.com.np/api/quotes/random";
+const QUOTE_API_BASE = "https://dummyjson.com/quotes/random";
 const UNSPLASH_SOURCE = "https://source.unsplash.com/featured/";
 const IMG_W = 1080;
 const IMG_H = 1080;
@@ -155,16 +159,19 @@ async function fetchQuote(category: string): Promise<Quote> {
     throw new Error(`Quote API returned ${response.status}: ${await response.text()}`);
   }
 
-  const body = await response.json();
-  if (!body?.data?.length) {
+  const body = await response.json() as {
+    id?: number | string;
+    quote: string;
+    author: string;
+  };
+  if (!body?.quote) {
     throw new Error("No quote returned from API");
   }
-  const q = body.data[0];
   return {
-    quote: q.quote || q.content,
-    author: q.author,
-    id: q.id,
-    category: q.category,
+    quote: body.quote,
+    author: body.author,
+    id: String(body.id || ""),
+    category: "",
   };
 }
 
@@ -381,15 +388,15 @@ async function main() {
     const svg = renderQuoteSvg(lines, quote.author, BRAND_ESCAPED, IMG_W, IMG_H, imgBase64, overlayOpacity);
     
     // Save SVG for inspection
-    const svgPath = join(dirname(fileURLToPath(import.meta.url)), "debug.svg");
+    const svgPath = join(DATA_DIR, "debug.svg");
     writeFileSync(svgPath, svg);
     console.log(`SVG saved to ${svgPath}`);
     console.log(`Overlay opacity used: ${overlayOpacity}`);
     
     // Also generate PNG
     const sharp = await getSharp();
-    const pngBuffer = await sharp.default()(Buffer.from(svg)).png().toBuffer();
-    const pngPath = join(dirname(fileURLToPath(import.meta.url)), "debug.png");
+    const pngBuffer = await sharp(Buffer.from(svg)).png().toBuffer();
+    const pngPath = join(DATA_DIR, "debug.png");
     writeFileSync(pngPath, pngBuffer);
     console.log(`PNG saved to ${pngPath}`);
     
@@ -439,15 +446,29 @@ async function main() {
 
   // 3. Convert SVG → PNG via sharp
   const sharp = await getSharp();
-  const pngBuffer = await sharp.default()(Buffer.from(svg)).png().toBuffer();
+  const pngBuffer = await sharp(Buffer.from(svg)).png().toBuffer();
 
-  const tmpPath = join(dirname(fileURLToPath(import.meta.url)), "ig-post.png");
+  const tmpPath = join(DATA_DIR, "ig-post.png");
   writeFileSync(tmpPath, pngBuffer);
   console.log(
     `Image generated: ${tmpPath} (${(pngBuffer.length / 1024).toFixed(1)} KB)`
   );
 
   // 4. Post to Instagram
+  // Guard: `execute` is only available in Composio CLI runtime, not in plain Node.js (Vercel etc.)
+  if (typeof execute !== "function") {
+    console.log("⚠️  Not in Composio runtime — skipping Instagram post.");
+    console.log(`   Image saved to ${tmpPath} (${(pngBuffer.length / 1024).toFixed(1)} KB)`);
+    // Still save to history and toggle treatment so state is consistent
+    history.add(dedupKey(quote!.quote, quote!.author));
+    saveHistory(history);
+    const nextState = { nextTreatment: currentTreatment === "light" ? "dark" as const : "light" as const };
+    saveTreatmentState(nextState);
+    console.log(`   History updated: ${history.size} total posts`);
+    console.log(`   Treatment toggled: next will be ${nextState.nextTreatment}`);
+    return;
+  }
+
   const caption = `"${quote.quote}" — ${quote.author}\n.\n.\n.\n#success #motivation #successquotes #dailyinspiration #mindset #hustle #successmindset`;
 
   // Step 4a: Check publishing quota
@@ -496,4 +517,16 @@ async function main() {
   const nextState = { nextTreatment: currentTreatment === "light" ? "dark" as const : "light" as const };
   saveTreatmentState(nextState);
   console.log(`Treatment state updated: next post will be ${nextState.nextTreatment}`);
-});
+            }
+
+// -----------------------------------------------------------------------------
+// Allow both direct execution and import
+export { main };
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  // `node src/daily-quote.ts` → run the job
+  main().catch(err => {
+    console.error('❌', err.message || err);
+    process.exit(1);
+  });
+}

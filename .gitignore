@@ -1,1 +1,13 @@
 node_modules/
+.vercel
+.env
+dist/
+*.js
+ig-post.png
+debug.png
+debug.svg
+.omo/
+scrolls/
+.composio-run-*.ts
+posted.json
+treatment-state.json

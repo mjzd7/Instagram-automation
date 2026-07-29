@@ -11,25 +11,27 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Install Composio CLI
-        run: curl -fsSL https://composio.dev/install.sh | bash
-      
-- name: Post Quote
-         env:
-           SLOT_ID: '4'
-           BRAND: 'success.for.sure™'
-           CATEGORIES: 'business,entrepreneurship,leadership,success,motivation'
-           HASHTAGS: '#motivatemedaily,#inspire,#inspiremedaily,#motivate,#hustle,#hardwork'
-           LOCATIONS: '#gurgaon,#delhidiaries'
-           COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
-         run: composio run --file scripts/daily-quote.ts
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/ComposioHQ/composio/main/install.sh | bash
+          echo "$HOME/.composio/bin" >> $GITHUB_PATH
+
+      - name: Post Quote
+        env:
+          SLOT_ID: '4'
+          BRAND: 'success.for.sure™'
+          CATEGORIES: 'business,entrepreneurship,leadership,success,motivation'
+          HASHTAGS: '#motivatemedaily,#inspire,#inspiremedaily,#motivate,#hustle,#hardwork'
+          LOCATIONS: '#gurgaon,#delhidiaries'
+          COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
+        run: composio run --file scripts/post-workflow.ts

@@ -1,13 +1,16 @@
 {
   "name": "instagram-quote-poster",
   "version": "1.0.0",
+  "type": "module",
   "description": "Auto-post success quotes to Instagram via Composio",
   "main": "scripts/daily-quote.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
   },
   "dependencies": {
     "canvas": "^3.2.3",
+    "composio": "^1.0.0",
     "sharp": "^0.33.5"
   },
   "engines": {

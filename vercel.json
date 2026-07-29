@@ -1,0 +1,24 @@
+{
+  "builds": [
+    {
+      "src": "api/*.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/post",
+      "dest": "api/post.ts"
+    },
+    {
+      "src": "/healthz",
+      "dest": "api/health.ts"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/post",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

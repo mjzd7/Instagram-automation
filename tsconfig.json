@@ -4,7 +4,7 @@
     "module": "es2020",
     "lib": ["es2020"],
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -12,6 +12,10 @@
     "moduleResolution": "node"
   },
   "include": [
-    "scripts/**/*"
+    "src/**/*"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
   ]
 }
