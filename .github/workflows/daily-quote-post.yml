@@ -25,8 +25,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run daily quote generation (SKIP mode)
+      - name: Run daily quote generation (POST to Instagram)
         env:
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+          COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
         run: |
-          SKIP_POST=true npx tsx src/daily-quote.ts
+          npx tsx src/daily-quote.ts
