@@ -495,8 +495,10 @@ async function main() {
 
   if (process.env.COMPOSIO_API_KEY) {
     // Use direct CLI call to bypass composio run's execute() wrapper
-    const payload = JSON.stringify({ ig_user_id: "me", image_file: tmpPath, caption });
-    const raw = execSync(`composio execute INSTAGRAM_POST_IG_USER_MEDIA -d '${payload}'`, {
+    const composioBin = process.env.COMPOSIO_BIN || "composio";
+    const payloadPath = join(DATA_DIR, "container-payload.json");
+    writeFileSync(payloadPath, JSON.stringify({ ig_user_id: "me", image_file: tmpPath, caption }));
+    const raw = execSync(`${composioBin} execute INSTAGRAM_POST_IG_USER_MEDIA -d @${payloadPath}`, {
       encoding: "utf-8",
       maxBuffer: 10 * 1024 * 1024,
     }).trim();

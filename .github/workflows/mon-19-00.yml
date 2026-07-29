@@ -45,4 +45,5 @@ jobs:
           LOCATIONS: '#gurgaon,#delhidiaries'
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
           COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
+          COMPOSIO_BIN: /home/runner/.composio/composio
         run: composio run --file scripts/post-workflow.ts
