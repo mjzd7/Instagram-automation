@@ -22,7 +22,7 @@ jobs:
         run: npm ci
       
       - name: Install Composio CLI
-        run: curl -fsSL https://composio.dev/install.sh | bash
+        run: npm install -g composio
       
 - name: Post Quote
          env:

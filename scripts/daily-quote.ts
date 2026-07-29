@@ -17,6 +17,7 @@
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Declare the execute function from Composio
 declare function execute(slug: string, data?: any): Promise<any>;
@@ -32,14 +33,18 @@ async function getSharp() {
 }
 
 // ── Configuration ──────────────────────────────────────────────────────
-const HISTORY_PATH = join(__dirname, "posted.json");
+const HISTORY_PATH = join(dirname(fileURLToPath(import.meta.url)), "posted.json");
+const TREATMENT_STATE_PATH = join(dirna(fileURLToPath(import.meta.url)), "treatment-state.json");
 // Ensure the directory exists
-const scriptDir = __dirname;
+const scriptDir = dirna(fileURLToPath(import.meta.url));
 if (!existsSync(scriptDir)) {
   mkdirSync(scriptDir, { recursive: true });
 }
 if (!existsSync(HISTORY_PATH)) {
   writeFileSync(HISTORY_PATH, JSON.stringify({ posted: [], updated: new Date().toISOString() }, null, 2));
+}
+if (!existsSync(TREATMENT_STATE_PATH)) {
+  writeFileSync(TREATMENT_STATE_PATH, JSON.stringify({ nextTreatment: "light" }, null, 2));
 }
 
 const QUOTE_API_BASE = "https://quotesapi.prayushadhikari.com.np/api/quotes/random";
@@ -54,7 +59,6 @@ const BRAND_ESCAPED = BRAND.replace(/™/g, "&#8482;").replace(/®/g, "&#174;");
 const AUTHOR_COLOR = "#e94560"; // accent red
 const TEXT_COLOR = "#ffffff";
 const MUTED = "rgba(255,255,255,0.35)";
-
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY; // Required for Unsplash API
 
 // Categories to pick from (comma-separated from env or default)
@@ -84,6 +88,31 @@ function hashCode(str: string): number {
 // Deterministic pseudo-random index from seed string
 function seededIndex(seed: string, max: number): number {
   return Math.abs(hashCode(seed)) % max;
+}
+
+// ── Treatment state helpers ───────────────────────────────────────────
+interface TreatmentState {
+  nextTreatment: "light" | "dark";
+}
+
+function loadTreatmentState(): TreatmentState {
+  if (!existsSync(TREATMENT_STATE_PATH)) {
+    // Default to light for first post
+    return { nextTreatment: "light" as const };
+  }
+  try {
+    const raw = readFileSync(TREATMENT_STATE_PATH, "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return { nextTreatment: "light" as const };
+  }
+}
+
+function saveTreatmentState(state: TreatmentState) {
+  writeFileSync(
+    TREATMENT_STATE_PATH,
+    JSON.stringify(state, null, 2)
+  );
 }
 
 // ── History helpers ───────────────────────────────────────────────────
@@ -139,16 +168,15 @@ async function fetchQuote(category: string): Promise<Quote> {
   };
 }
 
-// ── Background image fetching ─────────────────────────────────────────
-// ── Background image fetching ─────────────────────────────────────────
+// ── Background image fetching (OFFICIAL UNSPLASH API) ─────────────────────
 async function fetchBackgroundImage(category: string): Promise<Buffer> {
-  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
-  if (!accessKey) {
-    throw new Error("UNSPLASH_ACCESS_KEY environment variable is not set");
-  }
-
   try {
-    // Try to get image for the specific category
+    const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+    if (!accessKey) {
+      throw new Error("UNSPLASH_ACCESS_KEY environment variable is required");
+    }
+
+    // Use Unsplash's official API to get a random photo
     const response = await fetch(
       `https://api.unsplash.com/photos/random?query=${encodeURIComponent(
         category
@@ -156,82 +184,46 @@ async function fetchBackgroundImage(category: string): Promise<Buffer> {
     );
 
     if (!response.ok) {
-      // Fallback to motivation category if specific category fails
+      // Fallback to a generic term if specific category fails
       const fallbackResponse = await fetch(
         `https://api.unsplash.com/photos/random?query=motivation&orientation=landscape&client_id=${accessKey}`
       );
       if (!fallbackResponse.ok) {
-        throw new Error(
-          `Failed to fetch image from Unsplash: ${response.status} ${response.statusText}`
-        );
+        throw new Error("Failed to fetch background image from Unsplash");
       }
-      const data = await fallbackResponse.json();
-      const imageUrl = data.urls.regular;
-      const imageResponse = await fetch(imageUrl);
-      if (!imageResponse.ok) {
-        throw new Error(
-          `Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`
-        );
-      }
-      return Buffer.from(await imageResponse.arrayBuffer());
+      return Buffer.from(await fallbackResponse.arrayBuffer());
     }
-
-    const data = await response.json();
-    const imageUrl = data.urls.regular; // Good balance of quality and file size
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-      throw new Error(
-        `Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`
-      );
-    }
-    return Buffer.from(await imageResponse.arrayBuffer());
+    return Buffer.from(await response.arrayBuffer());
   } catch (error) {
-    console.error("Error fetching background image:", error);
+    // If Unsplash fails completely, create a simple gradient background
+    console.warn("Unsplash API failed, using generated background:", (error as Error).message);
     
-    // Final fallback: create a simple gradient background
-    return createFallbackBackground();
+    // Create a simple gradient background using canvas
+    const { Canvas, createCanvas } = await import("canvas");
+    const canvas = createCanvas(IMG_W, IMG_H);
+    const ctx = canvas.getContext("2d");
+    
+    // Create a nice gradient background
+    const gradient = ctx.createLinearGradient(0, 0, 0, IMG_H);
+    gradient.addColorStop(0, "#1e3c72");
+    gradient.addColorStop(1, "#2a5298");
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, IMG_W, IMG_H);
+    
+    // Add some subtle texture/noise
+    for (let i = 0; i < 500; i++) {
+      const x = Math.random() * IMG_W;
+      const y = Math.random() * IMG_H;
+      const radius = Math.random() * 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.08})`;
+      ctx.fill();
+    }
+    
+    return canvas.toBuffer("image/png");
   }
-}
-
-// Optional: Create a simple gradient background as final fallback
-function createFallbackBackground(): Buffer {
-  // Check if canvas is available
-  let Canvas;
-  try {
-    Canvas = require("canvas");
-  } catch (e) {
-    // If canvas is not available, return a minimal valid PNG
-    // This is a 1x1 transparent PNG
-    return Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-      "base64"
-    );
-  }
-
-  const { createCanvas } = Canvas;
-  const canvas = createCanvas(IMG_W, IMG_H);
-  const ctx = canvas.getContext("2d");
-
-  // Create a nice gradient background
-  const gradient = ctx.createLinearGradient(0, 0, 0, IMG_H);
-  gradient.addColorStop(0, "#1e3c72");
-  gradient.addColorStop(1, "#2a5298");
-
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, IMG_W, IMG_H);
-
-  // Add some subtle texture/noise
-  for (let i = 0; i < 500; i++) {
-    const x = Math.random() * IMG_W;
-    const y = Math.random() * IMG_H;
-    const radius = Math.random() * 1.5;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.08})`;
-    ctx.fill();
-  }
-
-  return canvas.toBuffer("image/png");
 }
 
 // ── SVG generation ────────────────────────────────────────────────────
@@ -258,16 +250,8 @@ function escapeXml(s: string): string {
     .replace(/&/g, "&")
     .replace(/</g, "<")
     .replace(/>/g, ">")
-    .replace(/"/g, """)
+    .replace(/"/g, '"')
     .replace(/'/g, "'");
-}
-
-function buildCaption(quote: string, author: string, brand: string, hashtags: string[], locations: string[]): string {
-  const engagement = "Tell Someone 😇\nTag Someone ❤\nTeach Someone 💞\n\n";
-  const quoteSection = `"${quote}" — ${author}\n\n`;
-  const allTags = [...hashtags, ...locations].join(" ");
-  const brandHandle = brand.includes("™") || brand.includes("®") ? brand : brand + "™";
-  return `${engagement}${quoteSection}${allTags}\n${brandHandle}`;
 }
 
 function renderQuoteSvg(
@@ -276,13 +260,15 @@ function renderQuoteSvg(
   brand: string,
   imgWidth: number,
   imgHeight: number,
-  imgBase64: string
+  imgBase64: string,
+  overlayOpacity: number
 ): string {
   const lineH = 76;
   const lineGap = 12;
   const totalTextH = lines.length * (lineH + lineGap) - lineGap;
-  const startY = (imgHeight - totalTextH) / 2 - 40;
+  const startY = (imgHeight - totalTextH) / 2 - 40; // roughly center
 
+  // Build text lines
   const textElements = lines
     .map(
       (line, i) =>
@@ -299,7 +285,7 @@ function renderQuoteSvg(
   <image width="100%" height="100%" preserveAspectRatio="xMidYMid slice" href="data:image/jpeg;base64,${imgBase64}"/>
 
   <!-- Tint overlay to unify colors -->
-  <rect width="${imgWidth}" height="${imgHeight}" fill="rgba(15,12,41,0.4)" /> <!-- dark blue tint -->
+  <rect width="${imgWidth}" height="${imgHeight}" fill="rgba(15,12,41,${overlayOpacity})" /> <!-- dynamic tint -->
 
   <!-- Top accent bar -->
   <rect width="${imgWidth}" height="6" fill="${AUTHOR_COLOR}"/>
@@ -330,3 +316,191 @@ function renderQuoteSvg(
   )}</text>
 </svg>`;
 }
+
+// ── Main ────────────────────────────────────────────────────────────
+async function main() {
+  const brand = process.env.BRAND || "@successquotes";
+  const maxRetries = 5;
+
+  const history = loadHistory();
+  console.log(`Slot ${SLOT_ID} - history: ${history.size} posts`);
+
+  // Check for required Unsplash access key
+  if (!UNSPLASH_ACCESS_KEY) {
+    console.error("Error: UNSPLASH_ACCESS_KEY environment variable is required");
+    process.exit(1);
+  }
+
+  // Get treatment state for this post
+  const treatmentState = loadTreatmentState();
+  const currentTreatment = treatmentState.nextTreatment; // "light" or "dark"
+  console.log(`Current treatment: ${currentTreatment}`);
+
+  // Determine overlay opacity based on treatment
+  const overlayOpacity = currentTreatment === "light" ? 0.05 : 0.4;
+  // Light: barely visible tint (almost whitish)
+  // Dark: current noticeable tint
+
+  // Debug mode: skip posting and just output info
+  if (process.env.SKIP_POST === "true") {
+    console.log("SKIP_POST mode: generating image for inspection only");
+    let quote: Quote | null = null;
+    let selectedCategory = "";
+    let imgBuffer: Buffer | null = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const seedCat = `${new Date().toISOString().slice(0, 10)}-slot-${SLOT_ID}-attempt-${attempt}`;
+      const catIdx = seededIndex(seedCat, CATEGORIES.length);
+      selectedCategory = CATEGORIES[catIdx];
+
+      try {
+        quote = await fetchQuote(selectedCategory);
+        const key = dedupKey(quote.quote, quote.author);
+        if (history.has(key)) {
+          console.log(`Duplicate (${attempt + 1}/${maxRetries}): "${quote.author}" - retrying`);
+          continue;
+        }
+        imgBuffer = await fetchBackgroundImage(selectedCategory);
+        console.log(
+          `Quote: "${quote!.quote.slice(0, 60)}..." — ${quote!.author} (category: ${selectedCategory})`
+        );
+        break;
+      } catch (err) {
+        console.warn(`Attempt ${attempt + 1} failed:`, (err as Error).message);
+      }
+    }
+
+    if (!quote || !imgBuffer) {
+      console.log("No quote found.");
+      process.exit(0);
+    }
+
+    const maxCharsPerLine = 36;
+    const lines = wrapText(quote.quote, maxCharsPerLine);
+    const imgBase64 = imgBuffer.toString("base64");
+    const svg = renderQuoteSvg(lines, quote.author, BRAND_ESCAPED, IMG_W, IMG_H, imgBase64, overlayOpacity);
+    
+    // Save SVG for inspection
+    const svgPath = join(dirname(fileURLToPath(import.meta.url)), "debug.svg");
+    writeFileSync(svgPath, svg);
+    console.log(`SVG saved to ${svgPath}`);
+    console.log(`Overlay opacity used: ${overlayOpacity}`);
+    
+    // Also generate PNG
+    const sharp = await getSharp();
+    const pngBuffer = await sharp.default()(Buffer.from(svg)).png().toBuffer();
+    const pngPath = join(dirname(fileURLToPath(import.meta.url)), "debug.png");
+    writeFileSync(pngPath, pngBuffer);
+    console.log(`PNG saved to ${pngPath}`);
+    
+    process.exit(0);
+  }
+
+  let quote: Quote | null = null;
+  let selectedCategory = "";
+  let imgBuffer: Buffer | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    // Deterministically pick a category based on date+slot+attempt to avoid infinite loops
+    const seedCat = `${new Date().toISOString().slice(0, 10)}-slot-${SLOT_ID}-attempt-${attempt}`;
+    const catIdx = seededIndex(seedCat, CATEGORIES.length);
+    selectedCategory = CATEGORIES[catIdx];
+
+    try {
+      quote = await fetchQuote(selectedCategory);
+      const key = dedupKey(quote.quote, quote.author);
+      if (history.has(key)) {
+        console.log(`Duplicate (${attempt + 1}/${maxRetries}): "${quote.author}" - retrying`);
+        continue;
+      }
+      // Fetch background image for this category
+      imgBuffer = await fetchBackgroundImage(selectedCategory);
+      // Fresh quote
+      console.log(
+        `Quote: "${quote!.quote.slice(0, 60)}..." — ${quote!.author} (category: ${selectedCategory})`
+      );
+      break;
+    } catch (err) {
+      console.warn(`Attempt ${attempt + 1} failed:`, (err as Error).message);
+      // continue to next attempt
+    }
+  }
+
+  if (!quote || !imgBuffer) {
+    console.log("All retries exhausted - no new quote found today.");
+    process.exit(0); // not an error, just nothing new
+  }
+
+  // 2. Generate SVG with embedded background image
+  const maxCharsPerLine = 36;
+  const lines = wrapText(quote.quote, maxCharsPerLine);
+  const imgBase64 = imgBuffer.toString("base64");
+  const svg = renderQuoteSvg(lines, quote.author, BRAND_ESCAPED, IMG_W, IMG_H, imgBase64, overlayOpacity);
+
+  // 3. Convert SVG → PNG via sharp
+  const sharp = await getSharp();
+  const pngBuffer = await sharp.default()(Buffer.from(svg)).png().toBuffer();
+
+  const tmpPath = join(dirname(fileURLToPath(import.meta.url)), "ig-post.png");
+  writeFileSync(tmpPath, pngBuffer);
+  console.log(
+    `Image generated: ${tmpPath} (${(pngBuffer.length / 1024).toFixed(1)} KB)`
+  );
+
+  // 4. Post to Instagram
+  const caption = `"${quote.quote}" — ${quote.author}\n.\n.\n.\n#success #motivation #successquotes #dailyinspiration #mindset #hustle #successmindset`;
+
+  // Step 4a: Check publishing quota
+  try {
+    const limit = await execute("INSTAGRAM_GET_IG_USER_CONTENT_PUBLISHING_LIMIT");
+    const usage = limit.data?.quota_usage;
+    if (usage) {
+      const remaining = usage.quota_total - usage.quota_used;
+      console.log(`Publishing quota: ${usage.quota_used}/${usage.quota_total} used`);
+      if (remaining < 1) {
+        console.log("Daily publishing limit reached. Skipping.");
+        process.exit(0);
+      }
+    }
+  } catch (quotaError) {
+    console.warn("Could not check quota:", (quotaError as Error).message);
+    // Continue anyway - maybe the endpoint isn't available
+  }
+
+  // Step 4b: Create media container (Composio auto-uploads the file)
+  console.log("Creating media container...");
+  const container = await execute("INSTAGRAM_POST_IG_USER_MEDIA", {
+    ig_user_id: "me",
+    image_file: tmpPath,
+    caption,
+  });
+  const creationId = container.data?.id || container.data?.creation_id;
+  console.log(`Container created: ${creationId}`);
+
+  // Step 4c: Publish
+  console.log("Publishing...");
+  const pub = await execute("INSTAGRAM_POST_IG_USER_MEDIA_PUBLISH", {
+    ig_user_id: "me",
+    creation_id: creationId,
+    max_wait_seconds: 90,
+  });
+  const mediaId = pub.data?.id;
+  console.log(`✅ Published! Media ID: ${mediaId}`);
+
+  // 5. Save to history
+  history.add(dedupKey(quote.quote, quote.author));
+  saveHistory(history);
+  console.log(`History updated: ${history.size} total posts`);
+
+  // 6. Toggle treatment for next post and save state
+  const nextState = { nextTreatment: currentTreatment === "light" ? "dark" as const : "light" as const,
+    nextTreatment: currentTreatment === "light" ? "dark" : "light"
+  };
+  saveTreatmentState(nextState);
+  console.log(`Treatment state updated: next post will be ${nextState.nextTreatment}`);
+}
+
+main().catch((err) => {
+  console.error("❌", err.message || err);
+  process.exit(1);
+});
