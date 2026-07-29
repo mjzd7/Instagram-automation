@@ -33,6 +33,9 @@ jobs:
             exit 1
           fi
 
+      - name: Authenticate Composio
+        run: composio login -y --user-api-key "${{ secrets.COMPOSIO_API_KEY }}"
+
       - name: Post Quote
         env:
           SLOT_ID: '2'
