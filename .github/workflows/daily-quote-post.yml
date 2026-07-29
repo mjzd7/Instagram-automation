@@ -30,4 +30,12 @@ jobs:
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
           COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
         run: |
-          npx tsx src/daily-quote.ts
+          for i in 1 2 3 4; do
+            echo "=== Posting quote #$i ==="
+            npx tsx src/daily-quote.ts
+            if [ "$i" -lt 4 ]; then
+              echo "Waiting 30 seconds before next post..."
+              sleep 30
+            fi
+          done
+          echo "=== All 4 quotes posted ==="
